@@ -336,6 +336,7 @@ function init_env() {
     init_env_display
     init_env_ping
     init_env_mail
+    init_env_gpg
 
     # CRON
     get_env CRON
@@ -425,6 +426,13 @@ function init_env() {
     color yellow "ZIP_ENABLE: ${ZIP_ENABLE}"
     color yellow "ZIP_PASSWORD: ${#ZIP_PASSWORD} Chars"
     color yellow "ZIP_TYPE: ${ZIP_TYPE}"
+    color yellow "GPG_ENABLE: ${GPG_ENABLE}"
+    if [[ "${GPG_ENABLE}" == "TRUE" ]]; then
+        color yellow "GPG_RECIPIENT: ${GPG_RECIPIENT}"
+        color yellow "GPG_PUBLIC_KEY_BASE64: ${#GPG_PUBLIC_KEY_BASE64} Chars"
+        color yellow "GPG_TRUST_LEVEL: ${GPG_TRUST_LEVEL}"
+        color yellow "KEEP_UNENCRYPTED_BACKUP: ${KEEP_UNENCRYPTED_BACKUP}"
+    fi
     color yellow "BACKUP_FILE_DATE_FORMAT: ${BACKUP_FILE_DATE_FORMAT} (example \"[filename].$(date +"${BACKUP_FILE_DATE_FORMAT}").[ext]\")"
     color yellow "BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS}"
     if [[ -n "${PING_URL}" ]]; then
@@ -643,5 +651,35 @@ function init_env_mail() {
         MAIL_FORCE_THREAD="TRUE"
     else
         MAIL_PARENT_MESSAGE_ID=""
+    fi
+}
+
+function init_env_gpg() {
+    # GPG_ENABLE
+    get_env GPG_ENABLE
+    if [[ "${GPG_ENABLE^^}" == "TRUE" ]]; then
+        GPG_ENABLE="TRUE"
+    else
+        GPG_ENABLE="FALSE"
+    fi
+
+    # GPG_RECIPIENT
+    get_env GPG_RECIPIENT
+    GPG_RECIPIENT="${GPG_RECIPIENT:-""}"
+
+    # GPG_PUBLIC_KEY_BASE64
+    get_env GPG_PUBLIC_KEY_BASE64
+    GPG_PUBLIC_KEY_BASE64="${GPG_PUBLIC_KEY_BASE64:-""}"
+
+    # GPG_TRUST_LEVEL
+    get_env GPG_TRUST_LEVEL
+    GPG_TRUST_LEVEL="${GPG_TRUST_LEVEL:-"always"}"
+
+    # KEEP_UNENCRYPTED_BACKUP
+    get_env KEEP_UNENCRYPTED_BACKUP
+    if [[ "${KEEP_UNENCRYPTED_BACKUP^^}" == "TRUE" ]]; then
+        KEEP_UNENCRYPTED_BACKUP="TRUE"
+    else
+        KEEP_UNENCRYPTED_BACKUP="FALSE"
     fi
 }

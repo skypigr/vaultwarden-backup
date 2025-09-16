@@ -151,6 +151,59 @@ function backup() {
     ls -lah "${BACKUP_DIR}"
 }
 
+function encrypt_with_gpg() {
+    local source_file="$1"
+    local encrypted_file="${source_file}.gpg"
+
+    color blue "GPG encryption is enabled. Starting the encryption process"
+
+    # Validate required environment variables
+    if [[ -z "${GPG_RECIPIENT}" || -z "${GPG_PUBLIC_KEY_BASE64}" ]]; then
+        color red "Error: GPG_RECIPIENT and GPG_PUBLIC_KEY_BASE64 must be set when GPG_ENABLE is true"
+
+        send_notification "failure" "Backup failed at $(date +"%Y-%m-%d %H:%M:%S %Z"). Reason: GPG encryption failed - missing required variables."
+
+        exit 1
+    fi
+
+    # Decode and import the public key
+    color blue "Importing GPG public key"
+    echo "${GPG_PUBLIC_KEY_BASE64}" | base64 -d | gpg --batch --import
+    if [[ $? -ne 0 ]]; then
+        color red "Error: Failed to import GPG public key"
+
+        send_notification "failure" "Backup failed at $(date +"%Y-%m-%d %H:%M:%S %Z"). Reason: GPG key import failed."
+
+        exit 1
+    fi
+
+    # Encrypt the backup file
+    color blue "Encrypting backup file: ${source_file}"
+    gpg --yes --batch --trust-model "${GPG_TRUST_LEVEL}" \
+        --recipient "${GPG_RECIPIENT}" \
+        --output "${encrypted_file}" \
+        --encrypt "${source_file}"
+
+    if [[ $? -ne 0 ]]; then
+        color red "Error: GPG encryption failed"
+
+        send_notification "failure" "Backup failed at $(date +"%Y-%m-%d %H:%M:%S %Z"). Reason: GPG encryption failed."
+
+        exit 1
+    fi
+
+    color green "Encryption successful. Encrypted file created at: ${encrypted_file}"
+
+    # Remove the original unencrypted file unless specified otherwise
+    if [[ "${KEEP_UNENCRYPTED_BACKUP}" != "TRUE" ]]; then
+        color blue "Removing unencrypted backup file: ${source_file}"
+        rm -f "${source_file}"
+    fi
+
+    # Return the path of the encrypted file for uploading
+    echo "${encrypted_file}"
+}
+
 function backup_package() {
     if [[ "${ZIP_ENABLE}" == "TRUE" ]]; then
         color blue "package backup file"
@@ -168,6 +221,11 @@ function backup_package() {
         color blue "display backup ${ZIP_TYPE} file list"
 
         7z l -p"${ZIP_PASSWORD}" "${BACKUP_FILE_ZIP}"
+
+        # Apply GPG encryption if enabled
+        if [[ "${GPG_ENABLE}" == "TRUE" ]]; then
+            UPLOAD_FILE=$(encrypt_with_gpg "${UPLOAD_FILE}")
+        fi
     else
         color yellow "skip package backup files"
 
