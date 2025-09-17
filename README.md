@@ -26,6 +26,11 @@ This tool supports backing up the following files or directories.
 - `attachments` (directory)
 - `sends` (directory)
 
+The following security features are supported.
+
+- **GPG Encryption**: Encrypt backup files using GPG before uploading to remote storage
+- **Password Protection**: ZIP/7z files can be password protected
+
 And the following ways of notifying backup results are supported.
 
 - Ping (send on completion, start, success, or failure)
@@ -125,6 +130,114 @@ docker run -d \
   -e DATA_DIR="/data" \
   ttionya/vaultwarden-backup:latest
 ```
+
+<br>
+
+
+
+### GPG Encryption
+
+The backup tool supports GPG encryption to provide an additional layer of security for your backup files. When enabled, all backup files are encrypted using GPG before being uploaded to remote storage.
+
+#### Setting Up GPG Encryption
+
+1. **Generate a GPG key pair** (if you don't have one):
+
+```shell
+gpg --full-generate-key
+```
+
+2. **Export your public key and encode it**:
+
+```shell
+# Replace 'user@example.com' with your email address
+gpg --armor --export user@example.com | base64 -w 0
+```
+
+3. **Configure environment variables**:
+
+```shell
+# Required variables
+GPG_ENABLE=TRUE
+GPG_RECIPIENT=user@example.com
+GPG_PUBLIC_KEY_BASE64=<your_base64_encoded_public_key>
+
+# Optional variables
+GPG_TRUST_LEVEL=always  # Default value
+```
+
+#### Example with Docker Compose
+
+Add the following environment variables to your `docker-compose.yml`:
+
+```yaml
+services:
+  backup:
+    image: ttionya/vaultwarden-backup:latest
+    environment:
+      - GPG_ENABLE=TRUE
+      - GPG_RECIPIENT=user@example.com
+      - GPG_PUBLIC_KEY_BASE64=LS0tLS1CRUdJTiBQR1AgUFVCTElDIEtFWSBCTE9DSy0tLS0t...
+      - GPG_TRUST_LEVEL=always
+      # ... other environment variables
+```
+
+#### Example with Docker Run
+
+```shell
+docker run -d \
+  --restart=always \
+  --name vaultwarden_backup \
+  --volumes-from=vaultwarden \
+  --mount type=volume,source=vaultwarden-rclone-data,target=/config/ \
+  -e DATA_DIR="/data" \
+  -e GPG_ENABLE=TRUE \
+  -e GPG_RECIPIENT=user@example.com \
+  -e GPG_PUBLIC_KEY_BASE64=LS0tLS1CRUdJTiBQR1AgUFVCTElDIEtFWSBCTE9DSy0tLS0t... \
+  -e GPG_TRUST_LEVEL=always \
+  ttionya/vaultwarden-backup:latest
+```
+
+#### Decrypting Backup Files
+
+To decrypt your backup files, use your private key:
+
+```shell
+# Decrypt a backup file
+gpg --decrypt backup.20240101.zip.gpg > backup.20240101.zip
+
+# Or decrypt and extract in one step
+gpg --decrypt backup.20240101.zip.gpg | unzip -
+```
+
+#### Restoring GPG-Encrypted Backups
+
+**Important:** The restore tool does not currently support automatic GPG decryption. You must decrypt backup files manually before using the restore feature.
+
+1. **Decrypt the backup file first:**
+
+```shell
+# Decrypt the GPG-encrypted backup
+gpg --decrypt backup.20240101.zip.gpg > backup.20240101.zip
+```
+
+2. **Then use the standard restore process:**
+
+```shell
+# Use the decrypted file with the restore tool
+docker run --rm -it \
+  --mount type=volume,source=vaultwarden-data,target=/bitwarden/data/ \
+  --mount type=bind,source=$(pwd),target=/bitwarden/restore/ \
+  ttionya/vaultwarden-backup:latest restore \
+  --zip-file backup.20240101.zip -p <your-zip-password>
+```
+
+**Important Security Notes:**
+
+- Keep your private key secure and backed up separately from your encrypted backups
+- The backup tool only requires the public key - never include your private key
+- Only the encrypted `.gpg` files are uploaded when GPG encryption is enabled
+- Use a strong passphrase for your GPG private key
 
 <br>
 
@@ -287,6 +400,46 @@ Because the `zip` format is less secure, we offer archives in `7z` format for th
 It should be noted that the password for vaultwarden is encrypted before it is sent to the server. The server does not have plaintext passwords, so the `zip` format is good enough for basic encryption needs.
 
 Default: `zip` (only support `zip` and `7z` formats)
+
+#### GPG_ENABLE
+
+Enable GPG encryption for backup files. When enabled, backup files will be encrypted using GPG before being uploaded to the remote storage.
+
+Default: `FALSE`
+
+#### GPG_RECIPIENT
+
+The email address or key ID of the GPG recipient. This is required when `GPG_ENABLE` is set to `TRUE`.
+
+**Example:** `user@example.com`
+
+Default: `''`
+
+#### GPG_PUBLIC_KEY_BASE64
+
+The base64-encoded GPG public key used for encryption. This is required when `GPG_ENABLE` is set to `TRUE`.
+
+You can generate this by exporting your public key and encoding it:
+
+```shell
+# Export and encode your public key
+gpg --armor --export user@example.com | base64 -w 0
+```
+
+Default: `''`
+
+#### GPG_TRUST_LEVEL
+
+The trust level for the GPG key. This determines how much you trust the key for encryption.
+
+Available options:
+- `always` (recommended for automated backups)
+- `ultimate`
+- `full`
+- `marginal`
+- `never`
+
+Default: `always`
 
 #### BACKUP_KEEP_DAYS
 
