@@ -92,7 +92,8 @@ function test_result() {
 . tests/units/backup-zip-file/test.sh
 . tests/units/backup-7z-file/test.sh
 . tests/units/backup-unpackage/test.sh
-. tests/units/backup-cron/test.sh
+. tests/units/backup-cron/test.sh # test wait for 120s, slow!
+. tests/units/backup-gpg/test.sh
 
 if [[ "${ERROR_NUM}" == "0" ]]; then
     color green "All tests passed"

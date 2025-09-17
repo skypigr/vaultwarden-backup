@@ -194,14 +194,12 @@ function encrypt_with_gpg() {
 
     color green "Encryption successful. Encrypted file created at: ${encrypted_file}"
 
-    # Remove the original unencrypted file unless specified otherwise
-    if [[ "${KEEP_UNENCRYPTED_BACKUP}" != "TRUE" ]]; then
-        color blue "Removing unencrypted backup file: ${source_file}"
-        rm -f "${source_file}"
-    fi
-
-    # Return the path of the encrypted file for uploading
-    echo "${encrypted_file}"
+    # Remove the original unencrypted file and update UPLOAD_FILE to encrypted version
+    color blue "Removing unencrypted backup file: ${source_file}"
+    rm -f "${source_file}"
+    
+    # Update UPLOAD_FILE to point to the encrypted file
+    UPLOAD_FILE="${encrypted_file}"
 }
 
 function backup_package() {
@@ -224,7 +222,8 @@ function backup_package() {
 
         # Apply GPG encryption if enabled
         if [[ "${GPG_ENABLE}" == "TRUE" ]]; then
-            UPLOAD_FILE=$(encrypt_with_gpg "${UPLOAD_FILE}")
+            encrypt_with_gpg "${UPLOAD_FILE}"
+            # UPLOAD_FILE will be updated by encrypt_with_gpg if successful
         fi
     else
         color yellow "skip package backup files"
@@ -236,7 +235,7 @@ function backup_package() {
 function upload() {
     # upload file not exist
     if [[ ! -e "${UPLOAD_FILE}" ]]; then
-        color red "upload file not found"
+        color red "upload file not found: ${UPLOAD_FILE}"
 
         send_notification "failure" "File upload failed at $(date +"%Y-%m-%d %H:%M:%S %Z"). Reason: Upload file not found."
 
