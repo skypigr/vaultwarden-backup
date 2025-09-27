@@ -225,12 +225,34 @@ function encrypt_with_gpg() {
         fi
     fi
 
+    # Prepare passphrase options (prefer file; avoid exposing in argv/env)
+    local gpg_pass_opts=()
+    local tmp_pass_file=""
+    if [[ -n "${GPG_SIGNING_PASSPHRASE_FILE:-}" && -r "${GPG_SIGNING_PASSPHRASE_FILE}" ]]; then
+        gpg_pass_opts+=("--passphrase-file" "${GPG_SIGNING_PASSPHRASE_FILE}")
+    elif [[ -n "${GPG_SIGNING_PASSPHRASE:-}" ]]; then
+        tmp_pass_file=$(mktemp 2>/dev/null)
+        if [[ -z "${tmp_pass_file}" || ! -f "${tmp_pass_file}" ]]; then
+            color red "Error: Unable to create temporary passphrase file"
+
+            send_notification "failure" "Backup failed at $(date +"%Y-%m-%d %H:%M:%S %Z"). Reason: Failed to prepare signing passphrase."
+
+            exit 1
+        fi
+        chmod 600 "${tmp_pass_file}"
+        # write without trailing newline
+        printf '%s' "${GPG_SIGNING_PASSPHRASE}" > "${tmp_pass_file}"
+        gpg_pass_opts+=("--passphrase-file" "${tmp_pass_file}")
+        # reduce exposure window for env var in child processes
+        unset GPG_SIGNING_PASSPHRASE
+    fi
+
     # Encrypt (and optionally sign) the backup file
     color blue "Encrypting backup file: ${source_file}"
     if [[ "${GPG_SIGN_ENABLE}" == "TRUE" ]]; then
         color blue "Signing and encrypting backup file"
         gpg --yes --batch --trust-model "${GPG_TRUST_LEVEL}" --pinentry-mode loopback \
-            ${GPG_SIGNING_PASSPHRASE:+--passphrase "${GPG_SIGNING_PASSPHRASE}"} \
+            ${gpg_pass_opts:+${gpg_pass_opts[@]}} \
             --local-user "${GPG_SIGNER}" \
             --recipient "${GPG_RECIPIENT}" \
             --output "${encrypted_file}" \
@@ -261,7 +283,7 @@ function encrypt_with_gpg() {
         fi
         local signature_file="${encrypted_file}.sig"
         gpg --yes --batch --local-user "${GPG_SIGNER}" --pinentry-mode loopback \
-            ${GPG_SIGNING_PASSPHRASE:+--passphrase "${GPG_SIGNING_PASSPHRASE}"} \
+            ${gpg_pass_opts:+${gpg_pass_opts[@]}} \
             ${armor_flag} --detach-sign --output "${signature_file}" "${encrypted_file}"
         if [[ $? -ne 0 ]]; then
             color red "Error: GPG detached signature generation failed"
@@ -283,6 +305,10 @@ function encrypt_with_gpg() {
     UPLOAD_FILE="${encrypted_file}"
 
     # Cleanup ephemeral GNUPGHOME
+    # cleanup temp passphrase file if created
+    if [[ -n "${tmp_pass_file}" ]]; then
+        rm -f "${tmp_pass_file}" 2>/dev/null || true
+    fi
     rm -rf "${gpg_tmp_home}" 2>/dev/null || true
     trap - EXIT
     unset GNUPGHOME
