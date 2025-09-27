@@ -252,6 +252,29 @@ function encrypt_with_gpg() {
 
     color green "Encryption successful. Encrypted file created at: ${encrypted_file}"
 
+    # Optionally generate a detached signature of the ciphertext
+    if [[ "${GPG_SIGN_ENABLE}" == "TRUE" && "${GPG_DETACHED_SIGN_ENABLE}" == "TRUE" ]]; then
+        color blue "Generating detached signature for encrypted file"
+        local armor_flag=""
+        if [[ "${GPG_SIG_ARMOR}" == "TRUE" ]]; then
+            armor_flag="--armor"
+        fi
+        local signature_file="${encrypted_file}.sig"
+        gpg --yes --batch --local-user "${GPG_SIGNER}" --pinentry-mode loopback \
+            ${GPG_SIGNING_PASSPHRASE:+--passphrase "${GPG_SIGNING_PASSPHRASE}"} \
+            ${armor_flag} --detach-sign --output "${signature_file}" "${encrypted_file}"
+        if [[ $? -ne 0 ]]; then
+            color red "Error: GPG detached signature generation failed"
+
+            send_notification "failure" "Backup failed at $(date +"%Y-%m-%d %H:%M:%S %Z"). Reason: Detached signature generation failed."
+
+            exit 1
+        fi
+        color green "Detached signature created at: ${signature_file}"
+        # Expose for upload step
+        UPLOAD_SIG_FILE="${signature_file}"
+    fi
+
     # Remove the original unencrypted file and update UPLOAD_FILE to encrypted version
     color blue "Removing unencrypted backup file: ${source_file}"
     rm -f "${source_file}"
@@ -317,6 +340,17 @@ function upload() {
             color red "upload failed"
 
             HAS_ERROR="TRUE"
+        fi
+
+        # Upload detached signature if present
+        if [[ -n "${UPLOAD_SIG_FILE}" && -f "${UPLOAD_SIG_FILE}" ]]; then
+            color blue "upload detached signature to storage system $(color yellow "[${RCLONE_REMOTE_X}]")"
+            rclone ${RCLONE_GLOBAL_FLAG} copy "${UPLOAD_SIG_FILE}" "${RCLONE_REMOTE_X}"
+            if [[ $? != 0 ]]; then
+                color red "upload signature failed"
+
+                HAS_ERROR="TRUE"
+            fi
         fi
     done
 
