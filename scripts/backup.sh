@@ -193,6 +193,38 @@ function encrypt_with_gpg() {
         exit 1
     fi
 
+    # If signing is enabled, import the private signing key
+    if [[ "${GPG_SIGN_ENABLE}" == "TRUE" ]]; then
+        color blue "GPG signing is enabled. Importing signer private key"
+
+        if [[ -z "${GPG_SIGNER}" || -z "${GPG_SIGNING_PRIVATE_KEY_BASE64}" ]]; then
+            color red "Error: GPG_SIGNER and GPG_SIGNING_PRIVATE_KEY_BASE64 must be set when GPG_SIGN_ENABLE is true"
+
+            send_notification "failure" "Backup failed at $(date +"%Y-%m-%d %H:%M:%S %Z"). Reason: Missing signing configuration."
+
+            exit 1
+        fi
+
+        echo "${GPG_SIGNING_PRIVATE_KEY_BASE64}" | base64 -d | gpg --batch --pinentry-mode loopback --import
+        if [[ $? -ne 0 ]]; then
+            color red "Error: Failed to import GPG signing private key"
+
+            send_notification "failure" "Backup failed at $(date +"%Y-%m-%d %H:%M:%S %Z"). Reason: Signing key import failed."
+
+            exit 1
+        fi
+
+        # Optional presence check for signer
+        gpg --batch --list-secret-keys "${GPG_SIGNER}" > /dev/null 2>&1
+        if [[ $? -ne 0 ]]; then
+            color red "Error: GPG signer key not found after import: ${GPG_SIGNER}"
+
+            send_notification "failure" "Backup failed at $(date +"%Y-%m-%d %H:%M:%S %Z"). Reason: Signer key not found after import."
+
+            exit 1
+        fi
+    fi
+
     # Encrypt the backup file
     color blue "Encrypting backup file: ${source_file}"
     gpg --yes --batch --trust-model "${GPG_TRUST_LEVEL}" --pinentry-mode loopback \
