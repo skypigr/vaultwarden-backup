@@ -166,6 +166,49 @@ GPG_PUBLIC_KEY_BASE64=<your_base64_encoded_public_key>
 GPG_TRUST_LEVEL=always  # Default value
 ```
 
+#### GPG Signing (optional)
+
+You can add authenticity by signing backups with a dedicated signing key. The backup will be signed and encrypted in one step (inline signature). Optionally, you can also generate a detached signature of the ciphertext for out‑of‑band verification.
+
+```shell
+# Inline sign + encrypt
+GPG_SIGN_ENABLE=TRUE
+GPG_SIGNER=user@example.com                     # Signer UID or key ID
+GPG_SIGNING_PRIVATE_KEY_BASE64=<base64_private_key>  # ASCII‑armored private key (base64)
+# Optional passphrase (or use GPG_SIGNING_PASSPHRASE_FILE)
+GPG_SIGNING_PASSPHRASE=your-passphrase
+
+# Optional detached signature of ciphertext
+GPG_DETACHED_SIGN_ENABLE=TRUE
+GPG_SIG_ARMOR=TRUE  # default TRUE
+```
+
+Examples with signing:
+
+```yaml
+services:
+  backup:
+    image: ttionya/vaultwarden-backup:latest
+    environment:
+      - GPG_ENABLE=TRUE
+      - GPG_RECIPIENT=user@example.com
+      - GPG_PUBLIC_KEY_BASE64=LS0tLS1CRUdJTiBQR1Ag...
+      - GPG_SIGN_ENABLE=TRUE
+      - GPG_SIGNER=user@example.com
+      - GPG_SIGNING_PRIVATE_KEY_BASE64=LS0tLS1CRUdJTiBQR1AgUFJJVkFURSBLRVkg...
+      - GPG_DETACHED_SIGN_ENABLE=TRUE
+```
+
+Verification snippets:
+
+```shell
+# Inline: decrypt will show a "Good signature"
+gpg --decrypt backup.zip.gpg > /dev/null
+
+# Detached: verify without decrypting
+gpg --verify backup.zip.gpg.sig backup.zip.gpg
+```
+
 #### Example with Docker Compose
 
 Add the following environment variables to your `docker-compose.yml`:
@@ -440,6 +483,42 @@ Available options:
 - `never`
 
 Default: `always`
+
+#### GPG_SIGN_ENABLE
+
+Enable signing during encryption. When enabled, backups are signed with the configured signer key and then encrypted. Signature is verified during decryption.
+
+Default: `FALSE`
+
+#### GPG_SIGNER
+
+The signer identity (UID or key ID) used with `gpg --local-user`. Required when `GPG_SIGN_ENABLE=TRUE`.
+
+Default: `''`
+
+#### GPG_SIGNING_PRIVATE_KEY_BASE64
+
+Base64 of the ASCII‑armored private key (or signing subkey) for the signer. Required when `GPG_SIGN_ENABLE=TRUE`.
+
+Default: `''`
+
+#### GPG_SIGNING_PASSPHRASE
+
+Passphrase for the signer’s private key. You can also use `GPG_SIGNING_PASSPHRASE_FILE` for secret mounting.
+
+Default: `''`
+
+#### GPG_DETACHED_SIGN_ENABLE
+
+Additionally create a detached signature of the ciphertext (`.gpg.sig`) so authenticity can be checked without decryption.
+
+Default: `FALSE`
+
+#### GPG_SIG_ARMOR
+
+Armor the detached signature (`.asc`-style). Effective only when `GPG_DETACHED_SIGN_ENABLE=TRUE`.
+
+Default: `TRUE`
 
 #### BACKUP_KEEP_DAYS
 
