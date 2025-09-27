@@ -24,6 +24,12 @@ docker run \
   ttionya/vaultwarden-backup:latest backup
 ```
 
+alternative:
+
+```shell
+docker exec vaultwarden-backup bash /app/backup.sh
+```
+
 You also need to mount the rclone config file and set the environment variables.
 
 The only difference is that the environment variable `CRON` does not work because it does not start the CRON program, but exits the container after the backup is done.
