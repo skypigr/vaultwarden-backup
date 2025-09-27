@@ -157,6 +157,22 @@ function encrypt_with_gpg() {
 
     color blue "GPG encryption is enabled. Starting the encryption process"
 
+    # Setup ephemeral GNUPG home for this operation
+    local gpg_tmp_home
+    gpg_tmp_home=$(mktemp -d 2>/dev/null)
+    if [[ -z "${gpg_tmp_home}" || ! -d "${gpg_tmp_home}" ]]; then
+        color red "Error: Unable to create temporary GNUPG home directory"
+
+        send_notification "failure" "Backup failed at $(date +"%Y-%m-%d %H:%M:%S %Z"). Reason: Failed to init GPG environment."
+
+        exit 1
+    fi
+    chmod 700 "${gpg_tmp_home}"
+    echo "allow-loopback-pinentry" > "${gpg_tmp_home}/gpg-agent.conf"
+    export GNUPGHOME="${gpg_tmp_home}"
+    # Ensure cleanup on exit/failure; expand variable now to keep the path
+    trap "rm -rf '${gpg_tmp_home}'" EXIT
+
     # Validate required environment variables
     if [[ -z "${GPG_RECIPIENT}" || -z "${GPG_PUBLIC_KEY_BASE64}" ]]; then
         color red "Error: GPG_RECIPIENT and GPG_PUBLIC_KEY_BASE64 must be set when GPG_ENABLE is true"
@@ -168,7 +184,7 @@ function encrypt_with_gpg() {
 
     # Decode and import the public key
     color blue "Importing GPG public key"
-    echo "${GPG_PUBLIC_KEY_BASE64}" | base64 -d | gpg --batch --import
+    echo "${GPG_PUBLIC_KEY_BASE64}" | base64 -d | gpg --batch --pinentry-mode loopback --import
     if [[ $? -ne 0 ]]; then
         color red "Error: Failed to import GPG public key"
 
@@ -179,7 +195,7 @@ function encrypt_with_gpg() {
 
     # Encrypt the backup file
     color blue "Encrypting backup file: ${source_file}"
-    gpg --yes --batch --trust-model "${GPG_TRUST_LEVEL}" \
+    gpg --yes --batch --trust-model "${GPG_TRUST_LEVEL}" --pinentry-mode loopback \
         --recipient "${GPG_RECIPIENT}" \
         --output "${encrypted_file}" \
         --encrypt "${source_file}"
@@ -200,6 +216,11 @@ function encrypt_with_gpg() {
     
     # Update UPLOAD_FILE to point to the encrypted file
     UPLOAD_FILE="${encrypted_file}"
+
+    # Cleanup ephemeral GNUPGHOME
+    rm -rf "${gpg_tmp_home}" 2>/dev/null || true
+    trap - EXIT
+    unset GNUPGHOME
 }
 
 function backup_package() {
