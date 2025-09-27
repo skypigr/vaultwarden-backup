@@ -56,8 +56,9 @@ UG6JNYxTDM7i9W2tW7Xn150N
 -----END PGP PRIVATE KEY BLOCK-----
 EOF
     
-    # Encode public key to base64 (compatibility with different base64 implementations)
+    # Encode keys to base64 (compatibility with different base64 implementations)
     GPG_PUBLIC_KEY_BASE64=$(base64 < "${GPG_PUBLIC_KEY_FILE}" | tr -d '\n')
+    GPG_PRIVATE_KEY_BASE64=$(base64 < "${GPG_PRIVATE_KEY_FILE}" | tr -d '\n')
     
     color green "Test GPG keys created successfully ($(echo ${GPG_PUBLIC_KEY_BASE64} | wc -c) chars)"
 }
@@ -261,6 +262,140 @@ function test_case_4_successful_encryption() {
     return $test_failed
 }
 
+function test_case_5_sign_and_encrypt_inline() {
+    color blue "Test Case 5: Inline Sign + Encrypt"
+
+    local test_failed=0
+
+    # Run backup with GPG signing enabled (inline signature)
+    local docker_output
+    docker_output=$(docker run --rm \
+        --mount "type=bind,source=${DATA_DIR},target=/bitwarden/data" \
+        --mount "type=bind,source=${TEST_OUTPUT_DIR},target=${REMOTE_DIR}" \
+        --mount "type=bind,source=${TEST_OUTPUT_DIR}/.config,target=/config" \
+        -e "RCLONE_REMOTE_NAME=TestBackup" \
+        -e "RCLONE_REMOTE_DIR=${REMOTE_DIR}" \
+        -e "ZIP_ENABLE=TRUE" \
+        -e "ZIP_PASSWORD=${PASSWORD}" \
+        -e "BACKUP_FILE_SUFFIX=test5" \
+        -e "GPG_ENABLE=TRUE" \
+        -e "GPG_RECIPIENT=${GPG_RECIPIENT}" \
+        -e "GPG_PUBLIC_KEY_BASE64=${GPG_PUBLIC_KEY_BASE64}" \
+        -e "GPG_TRUST_LEVEL=always" \
+        -e "GPG_SIGN_ENABLE=TRUE" \
+        -e "GPG_SIGNER=${GPG_RECIPIENT}" \
+        -e "GPG_SIGNING_PRIVATE_KEY_BASE64=${GPG_PRIVATE_KEY_BASE64}" \
+        "${DOCKER_IMAGE}" \
+        backup 2>&1)
+
+    # Expect signing path triggered
+    if echo "$docker_output" | grep -q "Signing and encrypting backup file"; then
+        color green "PASS: Signing path triggered"
+    else
+        color red "FAIL: Signing path not triggered"
+        ((test_failed++))
+    fi
+
+    # Check that encrypted backup file was created
+    local backup_file_5="${TEST_OUTPUT_DIR}/backup.test5.zip.gpg"
+    if [[ -f "${backup_file_5}" ]]; then
+        color green "PASS: Encrypted backup file created (inline signed)"
+    else
+        color red "FAIL: Encrypted backup file not found (inline signed)"
+        ((test_failed++))
+    fi
+
+    # Verify signature during decryption inside the container
+    if [[ -f "${backup_file_5}" ]]; then
+        local verify_output
+        verify_output=$(docker run --rm \
+            --mount "type=bind,source=${TEST_OUTPUT_DIR},target=/work" \
+            --entrypoint sh \
+            "${DOCKER_IMAGE}" \
+            -lc "gpg --batch --import /work/$(basename \"${GPG_PUBLIC_KEY_FILE}\"); \
+                 gpg --batch --import /work/$(basename \"${GPG_PRIVATE_KEY_FILE}\"); \
+                 gpg --batch --yes --pinentry-mode loopback --decrypt /work/$(basename \"${backup_file_5}\") > /dev/null" 2>&1)
+
+        echo "$verify_output"
+        if echo "$verify_output" | grep -qi "Good signature"; then
+            color green "PASS: Decryption verified a good signature"
+        else
+            color red "FAIL: Signature verification during decrypt did not show 'Good signature'"
+            ((test_failed++))
+        fi
+    fi
+
+    return $test_failed
+}
+
+function test_case_6_detached_signature() {
+    color blue "Test Case 6: Detached Signature of Ciphertext"
+
+    local test_failed=0
+
+    # Run backup with GPG signing and detached signature enabled
+    local docker_output
+    docker_output=$(docker run --rm \
+        --mount "type=bind,source=${DATA_DIR},target=/bitwarden/data" \
+        --mount "type=bind,source=${TEST_OUTPUT_DIR},target=${REMOTE_DIR}" \
+        --mount "type=bind,source=${TEST_OUTPUT_DIR}/.config,target=/config" \
+        -e "RCLONE_REMOTE_NAME=TestBackup" \
+        -e "RCLONE_REMOTE_DIR=${REMOTE_DIR}" \
+        -e "ZIP_ENABLE=TRUE" \
+        -e "ZIP_PASSWORD=${PASSWORD}" \
+        -e "BACKUP_FILE_SUFFIX=test6" \
+        -e "GPG_ENABLE=TRUE" \
+        -e "GPG_RECIPIENT=${GPG_RECIPIENT}" \
+        -e "GPG_PUBLIC_KEY_BASE64=${GPG_PUBLIC_KEY_BASE64}" \
+        -e "GPG_TRUST_LEVEL=always" \
+        -e "GPG_SIGN_ENABLE=TRUE" \
+        -e "GPG_SIGNER=${GPG_RECIPIENT}" \
+        -e "GPG_SIGNING_PRIVATE_KEY_BASE64=${GPG_PRIVATE_KEY_BASE64}" \
+        -e "GPG_DETACHED_SIGN_ENABLE=TRUE" \
+        -e "GPG_SIG_ARMOR=TRUE" \
+        "${DOCKER_IMAGE}" \
+        backup 2>&1)
+
+    # Check that encrypted backup file and detached signature were created
+    local backup_file_6="${TEST_OUTPUT_DIR}/backup.test6.zip.gpg"
+    local sig_file_6="${backup_file_6}.sig"
+
+    if [[ -f "${backup_file_6}" ]]; then
+        color green "PASS: Encrypted backup file created"
+    else
+        color red "FAIL: Encrypted backup file not found"
+        ((test_failed++))
+    fi
+
+    if [[ -f "${sig_file_6}" ]]; then
+        color green "PASS: Detached signature file created"
+    else
+        color red "FAIL: Detached signature file not found"
+        ((test_failed++))
+    fi
+
+    # Verify detached signature inside the container using the public key
+    if [[ -f "${sig_file_6}" && -f "${backup_file_6}" ]]; then
+        local verify_output
+        verify_output=$(docker run --rm \
+            --mount "type=bind,source=${TEST_OUTPUT_DIR},target=/work" \
+            --entrypoint sh \
+            "${DOCKER_IMAGE}" \
+            -lc "gpg --batch --import /work/$(basename \"${GPG_PUBLIC_KEY_FILE}\"); \
+                 gpg --batch --verify /work/$(basename \"${sig_file_6}\") /work/$(basename \"${backup_file_6}\")" 2>&1)
+
+        echo "$verify_output"
+        if echo "$verify_output" | grep -qi "Good signature"; then
+            color green "PASS: Detached signature verified successfully"
+        else
+            color red "FAIL: Detached signature verification failed"
+            ((test_failed++))
+        fi
+    fi
+
+    return $test_failed
+}
+
 function test() {
     color blue "Running GPG encryption tests..."
     
@@ -277,6 +412,12 @@ function test() {
     total_failures=$((total_failures + $?))
     
     test_case_4_successful_encryption
+    total_failures=$((total_failures + $?))
+    
+    test_case_5_sign_and_encrypt_inline
+    total_failures=$((total_failures + $?))
+
+    test_case_6_detached_signature
     total_failures=$((total_failures + $?))
     
     FAILED_NUM=$total_failures
