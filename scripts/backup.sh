@@ -225,12 +225,22 @@ function encrypt_with_gpg() {
         fi
     fi
 
-    # Encrypt the backup file
+    # Encrypt (and optionally sign) the backup file
     color blue "Encrypting backup file: ${source_file}"
-    gpg --yes --batch --trust-model "${GPG_TRUST_LEVEL}" --pinentry-mode loopback \
-        --recipient "${GPG_RECIPIENT}" \
-        --output "${encrypted_file}" \
-        --encrypt "${source_file}"
+    if [[ "${GPG_SIGN_ENABLE}" == "TRUE" ]]; then
+        color blue "Signing and encrypting backup file"
+        gpg --yes --batch --trust-model "${GPG_TRUST_LEVEL}" --pinentry-mode loopback \
+            ${GPG_SIGNING_PASSPHRASE:+--passphrase "${GPG_SIGNING_PASSPHRASE}"} \
+            --local-user "${GPG_SIGNER}" \
+            --recipient "${GPG_RECIPIENT}" \
+            --output "${encrypted_file}" \
+            --sign --encrypt "${source_file}"
+    else
+        gpg --yes --batch --trust-model "${GPG_TRUST_LEVEL}" --pinentry-mode loopback \
+            --recipient "${GPG_RECIPIENT}" \
+            --output "${encrypted_file}" \
+            --encrypt "${source_file}"
+    fi
 
     if [[ $? -ne 0 ]]; then
         color red "Error: GPG encryption failed"
