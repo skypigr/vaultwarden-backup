@@ -13,8 +13,8 @@ This document outlines a phased execution plan for implementing the GPG encrypti
     1.  Modify the `Dockerfile` to add the `gnupg` package to the `apk add` command.
     2.  Build the new Docker image and test to ensure `gpg --version` runs successfully.
 *   **Deliverable**: An updated `Dockerfile` pushed to a feature branch.
-*   **Reporting**: Update the `WORK_STATUS.md` file when this work stream is `In Progress` and `Completed`.
-*   **Reference**: `DETAILED_DESIGN.md`, Section 2.1.
+*   **Reporting**: Update the `docs/gpg/work-status.md` file when this work stream is `In Progress` and `Completed`.
+*   **Reference**: `docs/gpg/detailed-design.md`, Section 2.1.
 
 ---
 
@@ -27,8 +27,8 @@ This document outlines a phased execution plan for implementing the GPG encrypti
     3.  Integrate the function into the main backup flow, ensuring it only runs when `GPG_ENABLE` is true.
     4.  Ensure the final Rclone upload command correctly targets the encrypted (`.gpg`) file when encryption is active.
 *   **Deliverable**: A modified `scripts/backup.sh` file on a feature branch.
-*   **Reporting**: Update the `WORK_STATUS.md` file when this work stream is `In Progress` and `Completed`.
-*   **Reference**: `DETAILED_DESIGN.md`, Section 2.3.
+*   **Reporting**: Update the `docs/gpg/work-status.md` file when this work stream is `In Progress` and `Completed`.
+*   **Reference**: `docs/gpg/detailed-design.md`, Section 2.3.
 
 ---
 
@@ -47,8 +47,8 @@ This document outlines a phased execution plan for implementing the GPG encrypti
         *   Test Case 4: Keep Unencrypted Backup.
     4.  Ensure the new test unit can be run as part of the project's existing test suite.
 *   **Deliverable**: A new `tests/units/backup-gpg/test.sh` file on a feature branch.
-*   **Reporting**: Update the `WORK_STATUS.md` file when this work stream is `In Progress` and `Completed`.
-*   **Reference**: `DETAILED_DESIGN.md`, Section 4.1.
+*   **Reporting**: Update the `docs/gpg/work-status.md` file when this work stream is `In Progress` and `Completed`.
+*   **Reference**: `docs/gpg/detailed-design.md`, Section 4.1.
 
 ---
 
@@ -64,8 +64,8 @@ This document outlines a phased execution plan for implementing the GPG encrypti
         *   How to Base64 encode their public key.
         *   The full manual process for decrypting a backup for a restore operation.
 *   **Deliverable**: An updated `README.md` file on a feature branch.
-*   **Reporting**: Update the `WORK_STATUS.md` file when this work stream is `In Progress` and `Completed`.
-*   **Reference**: `DETAILED_DESIGN.md`, Section 5.
+*   **Reporting**: Update the `docs/gpg/work-status.md` file when this work stream is `In Progress` and `Completed`.
+*   **Reference**: `docs/gpg/detailed-design.md`, Section 5.
 
 ---
 
@@ -80,5 +80,5 @@ This document outlines a phased execution plan for implementing the GPG encrypti
     3.  Perform the complete "Manual End-to-End Test" as outlined in the design document to verify the full user workflow.
     4.  Once verified, merge the feature branch into the main project branch and create a new release tag.
 *   **Deliverable**: A new stable release of the `vaultwarden-backup` image with the GPG encryption feature.
-*   **Reporting**: Update the `WORK_STATUS.md` file when this work stream is `In Progress` and `Completed`.
-*   **Reference**: `DETAILED_DESIGN.md`, Section 4.2.
+*   **Reporting**: Update the `docs/gpg/work-status.md` file when this work stream is `In Progress` and `Completed`.
+*   **Reference**: `docs/gpg/detailed-design.md`, Section 4.2.

@@ -12,6 +12,22 @@ This document tracks the progress of the different work streams for the GPG encr
 
 ---
 
+## GPG Signing Feature - Work Status
+
+This section tracks progress for the GPG Signing enhancement (inline sign + optional detached signature).
+
+| Work Stream | Status | Commit(s) | Notes |
+| --- | --- | --- | --- |
+| 1. Env plumbing (includes.sh) | `Completed` | 05e928f | Load signing env vars; safe summary logging only. |
+| 2. Ephemeral GNUPGHOME + loopback | `Completed` | da15273 | Temp GNUPGHOME per run; cleanup and loopback pinentry. |
+| 3. Import signer key + validation | `Completed` | e1738a5 | Import private key when signing enabled; validate signer key presence. |
+| 4. Sign-and-encrypt path | `Completed` | 025aa5a | Use gpg --sign --encrypt with signer; fallback to encrypt-only when disabled. |
+| 5. Detached signature + upload | `Completed` | d1471ae | Optional .gpg.sig generation and upload alongside ciphertext. |
+| 6. Tests (TC5 inline, TC6 detached) | `Completed` | eb1386d, 53a792c | Add tests and stabilize verification/log assertions. |
+| 7. Documentation updates | `Completed` | 72f77f4, ff59c7d | README signing section + execution plan doc. |
+| 8. Release tracking (CHANGELOG/version) | `Not Started` | \- | Add CHANGELOG entry and version bump when releasing. |
+| Security hardening: passphrase handling | `Completed` | 6e3162d | Prefer --passphrase-file; avoid exporting passphrase; temp file fallback + cleanup. |
+
 ### How to Update
 
 1.  Find the row for your work stream.

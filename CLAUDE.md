@@ -101,9 +101,9 @@ Environment variables are loaded with this priority:
 ## Current Development
 
 The project is actively implementing GPG encryption functionality on the `encrypt_with_gpg` branch. Key development documents:
-- `DETAILED_DESIGN.md`: Technical design for GPG implementation
-- `EXECUTION_PLAN.md`: Phased implementation plan
-- `WORK_STATUS.md`: Current development status tracking
+- `docs/gpg/detailed-design.md`: Technical design for GPG implementation
+- `docs/gpg/execution-plan.md`: Phased implementation plan
+- `docs/gpg/work-status.md`: Current development status tracking
 
 ## Testing Guidelines
 

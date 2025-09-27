@@ -104,7 +104,7 @@ Actionable TODOs (assignable, minimal file reads required)
   - Docs accurate, copy-pasteable, and consistent with implemented flags
 
 [ ] T8: Release tracking
-- Files: CHANGELOG.md, WORK_STATUS.md, version
+- Files: CHANGELOG.md, docs/gpg/work-status.md, version
 - Tasks:
   - Add CHANGELOG entry
   - Update WORK_STATUS with T1–T7 statuses
@@ -132,4 +132,3 @@ Appendix: Minimal Command Shapes (reference)
   gpg --yes --batch --local-user "$GPG_SIGNER" --pinentry-mode loopback \
     ${GPG_SIGNING_PASSPHRASE:+--passphrase "$GPG_SIGNING_PASSPHRASE"} \
     ${GPG_SIG_ARMOR:+--armor} --detach-sign --output "$out.sig" "$out"
-
