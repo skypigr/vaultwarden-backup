@@ -431,6 +431,18 @@ function init_env() {
         color yellow "GPG_RECIPIENT: ${GPG_RECIPIENT}"
         color yellow "GPG_PUBLIC_KEY_BASE64: ${#GPG_PUBLIC_KEY_BASE64} Chars"
         color yellow "GPG_TRUST_LEVEL: ${GPG_TRUST_LEVEL}"
+        # GPG signing summary (no secrets)
+        color yellow "GPG_SIGN_ENABLE: ${GPG_SIGN_ENABLE}"
+        if [[ "${GPG_SIGN_ENABLE}" == "TRUE" ]]; then
+            color yellow "GPG_SIGNER: ${GPG_SIGNER}"
+            if [[ -n "${GPG_SIGNING_PRIVATE_KEY_BASE64}" ]]; then
+                color yellow "GPG_SIGNING_PRIVATE_KEY_BASE64: ${#GPG_SIGNING_PRIVATE_KEY_BASE64} Chars"
+            else
+                color yellow "GPG_SIGNING_PRIVATE_KEY_BASE64: 0 Chars"
+            fi
+            color yellow "GPG_DETACHED_SIGN_ENABLE: ${GPG_DETACHED_SIGN_ENABLE}"
+            color yellow "GPG_SIG_ARMOR: ${GPG_SIG_ARMOR}"
+        fi
     fi
     color yellow "BACKUP_FILE_DATE_FORMAT: ${BACKUP_FILE_DATE_FORMAT} (example \"[filename].$(date +"${BACKUP_FILE_DATE_FORMAT}").[ext]\")"
     color yellow "BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS}"
@@ -674,4 +686,40 @@ function init_env_gpg() {
     get_env GPG_TRUST_LEVEL
     GPG_TRUST_LEVEL="${GPG_TRUST_LEVEL:-"always"}"
 
+    # Signing-related (do not print secrets)
+    # GPG_SIGN_ENABLE
+    get_env GPG_SIGN_ENABLE
+    if [[ "${GPG_SIGN_ENABLE^^}" == "TRUE" ]]; then
+        GPG_SIGN_ENABLE="TRUE"
+    else
+        GPG_SIGN_ENABLE="FALSE"
+    fi
+
+    # GPG_SIGNER (UID or key ID)
+    get_env GPG_SIGNER
+    GPG_SIGNER="${GPG_SIGNER:-""}"
+
+    # GPG_SIGNING_PRIVATE_KEY_BASE64 (base64 of ASCII-armored private key)
+    get_env GPG_SIGNING_PRIVATE_KEY_BASE64
+    GPG_SIGNING_PRIVATE_KEY_BASE64="${GPG_SIGNING_PRIVATE_KEY_BASE64:-""}"
+
+    # GPG_SIGNING_PASSPHRASE (supports _FILE via get_env)
+    get_env GPG_SIGNING_PASSPHRASE
+    GPG_SIGNING_PASSPHRASE="${GPG_SIGNING_PASSPHRASE:-""}"
+
+    # GPG_DETACHED_SIGN_ENABLE
+    get_env GPG_DETACHED_SIGN_ENABLE
+    if [[ "${GPG_DETACHED_SIGN_ENABLE^^}" == "TRUE" ]]; then
+        GPG_DETACHED_SIGN_ENABLE="TRUE"
+    else
+        GPG_DETACHED_SIGN_ENABLE="FALSE"
+    fi
+
+    # GPG_SIG_ARMOR (default TRUE)
+    get_env GPG_SIG_ARMOR
+    if [[ "${GPG_SIG_ARMOR^^}" == "FALSE" ]]; then
+        GPG_SIG_ARMOR="FALSE"
+    else
+        GPG_SIG_ARMOR="TRUE"
+    fi
 }
