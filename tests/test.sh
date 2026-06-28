@@ -94,6 +94,7 @@ function test_result() {
 . tests/units/backup-unpackage/test.sh
 . tests/units/backup-cron/test.sh # test wait for 120s, slow!
 . tests/units/backup-gpg/test.sh
+. tests/units/backup-local-copy/test.sh
 
 if [[ "${ERROR_NUM}" == "0" ]]; then
     color green "All tests passed"

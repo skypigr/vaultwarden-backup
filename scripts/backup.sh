@@ -408,6 +408,44 @@ function clear_history() {
     fi
 }
 
+function save_to_local() {
+    if [[ -n "${LOCAL_BACKUP_DIR}" ]]; then
+        color blue "save backup file to local directory: ${LOCAL_BACKUP_DIR}"
+
+        # Ensure destination local directory exists
+        mkdir -p "${LOCAL_BACKUP_DIR}"
+
+        if [[ -d "${UPLOAD_FILE}" ]]; then
+            # If ZIP_ENABLE=FALSE, UPLOAD_FILE is the temporary backup directory.
+            # Create a timestamped subdirectory inside LOCAL_BACKUP_DIR to prevent files mixing.
+            local TARGET_SUBDIR="${LOCAL_BACKUP_DIR}/backup.${NOW}"
+            mkdir -p "${TARGET_SUBDIR}"
+            cp -rf "${UPLOAD_FILE}"/. "${TARGET_SUBDIR}/"
+        else
+            # If ZIP_ENABLE=TRUE, UPLOAD_FILE is the compressed archive file.
+            cp -f "${UPLOAD_FILE}" "${LOCAL_BACKUP_DIR}/"
+        fi
+
+        if [[ $? == 0 ]]; then
+            color green "successfully saved to local"
+        else
+            color red "save to local failed"
+        fi
+    fi
+}
+
+function clear_local_history() {
+    if [[ -n "${LOCAL_BACKUP_DIR}" && "${LOCAL_BACKUP_KEEP_DAYS}" -gt 0 ]]; then
+        color blue "delete ${LOCAL_BACKUP_KEEP_DAYS} days ago local backup files"
+
+        if [[ -d "${LOCAL_BACKUP_DIR}" ]]; then
+            # Find and delete all files and directories inside LOCAL_BACKUP_DIR modified more than LOCAL_BACKUP_KEEP_DAYS ago
+            # -mindepth 1 ensures the root LOCAL_BACKUP_DIR itself is not deleted
+            find "${LOCAL_BACKUP_DIR}" -mindepth 1 -mtime +"${LOCAL_BACKUP_KEEP_DAYS}" -delete
+        fi
+    fi
+}
+
 color blue "running the backup program at $(date +"%Y-%m-%d %H:%M:%S %Z")"
 
 init_env
@@ -421,7 +459,9 @@ backup_init
 backup
 backup_package
 upload
+save_to_local
 clear_dir
+clear_local_history
 clear_history
 
 send_notification "success" "The file was successfully uploaded at $(date +"%Y-%m-%d %H:%M:%S %Z")."
